@@ -48,13 +48,22 @@ pub fn encrypt(
     let mut state =
         PoseidonCipher::initial_state_circuit(composer, ks0, ks1, nonce);
 
+    println!("message : {:#?}", message);
+
+    println!("state 1 : {:#?}", state);
+
     GadgetStrategy::gadget(composer, &mut state);
+
+    println!("state 2 : {:#?}", state);
+
 
     (0..PoseidonCipher::capacity()).for_each(|i| {
         let x = if i < message.len() { message[i] } else { zero };
 
         let constraint =
             Constraint::new().left(1).a(state[i + 1]).right(1).b(x);
+
+        println!("i : {}, state i + 1: {:#?}", i, state[i+1]);
 
         state[i + 1] = composer.gate_add(constraint);
 

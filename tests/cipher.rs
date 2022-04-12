@@ -210,6 +210,8 @@ impl<'a> Circuit for TestCipherCircuit<'a> {
                 composer.assert_equal(x, *g);
             });
 
+        println!("number of gate : {:#?}", composer.gates());
+
         Ok(())
     }
 
@@ -249,6 +251,7 @@ fn gadget() -> Result<(), PlonkError> {
     let pp = PublicParameters::setup(1 << size, &mut OsRng)?;
     let (pk, vd) = TestCipherCircuit::default().compile(&pp)?;
 
+
     let proof = TestCipherCircuit::new(
         bob_secret,
         alice_public,
@@ -257,6 +260,8 @@ fn gadget() -> Result<(), PlonkError> {
         cipher.cipher(),
     )
     .prove(&pp, &pk, label)?;
+
+    println!("proof: {:#?}", proof);
 
     TestCipherCircuit::verify(&pp, &vd, &proof, &[], label)?;
 
