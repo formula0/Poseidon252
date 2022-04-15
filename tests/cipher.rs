@@ -237,7 +237,7 @@ fn gadget() -> Result<(), PlonkError> {
     // Generate a secret message
     let a = BlsScalar::random(&mut OsRng);
     let b = BlsScalar::random(&mut OsRng);
-    let message = [a, b, a, b, a, b];
+    let message = [a, b, a, b, a, b, a, b, a];
 
     // Perform the encryption
     let nonce = BlsScalar::random(&mut OsRng);
