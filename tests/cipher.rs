@@ -8,7 +8,7 @@ use core::ops::Mul;
 use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
 use dusk_jubjub::{
-    dhke, JubJubAffine, JubJubExtended, JubJubScalar, GENERATOR,
+    dhke, JubJubAffine, JubJubScalar, GENERATOR,
     GENERATOR_EXTENDED,
 };
 use dusk_plonk::error::Error as PlonkError;
@@ -124,8 +124,7 @@ fn bytes() -> Result<(), Error> {
 
 #[derive(Debug)]
 pub struct TestCipherCircuit<'a> {
-    secret: JubJubScalar,
-    public: JubJubExtended,
+    shared_secret: JubJubAffine,
     nonce: BlsScalar,
     message: &'a [BlsScalar],
     cipher: &'a [BlsScalar],
@@ -133,15 +132,13 @@ pub struct TestCipherCircuit<'a> {
 
 impl<'a> TestCipherCircuit<'a> {
     pub const fn new(
-        secret: JubJubScalar,
-        public: JubJubExtended,
+        shared_secret: JubJubAffine,
         nonce: BlsScalar,
         message: &'a [BlsScalar],
         cipher: &'a [BlsScalar],
     ) -> Self {
         Self {
-            secret,
-            public,
+            shared_secret,
             nonce,
             message,
             cipher,
@@ -152,7 +149,6 @@ impl<'a> TestCipherCircuit<'a> {
 impl<'a> Default for TestCipherCircuit<'a> {
     fn default() -> Self {
         let secret = Default::default();
-        let nonce = Default::default();
         let message = Default::default();
 
         const MESSAGE: [BlsScalar; PoseidonCipher::capacity()] =
@@ -160,7 +156,7 @@ impl<'a> Default for TestCipherCircuit<'a> {
         const CIPHER: [BlsScalar; PoseidonCipher::cipher_size()] =
             [BlsScalar::zero(); PoseidonCipher::cipher_size()];
 
-        Self::new(secret, nonce, message, &MESSAGE, &CIPHER)
+        Self::new(secret, message, &MESSAGE, &CIPHER)
     }
 }
 
@@ -174,10 +170,7 @@ impl<'a> Circuit for TestCipherCircuit<'a> {
         let zero = TurboComposer::constant_zero();
         let nonce = composer.append_witness(self.nonce);
 
-        let secret = composer.append_witness(self.secret);
-        let public = composer.append_point(self.public);
-
-        let shared = composer.component_mul_point(secret, public);
+        let shared = composer.append_public_point(self.shared_secret);
 
         let mut message_circuit = [zero; PoseidonCipher::capacity()];
 
@@ -195,7 +188,7 @@ impl<'a> Circuit for TestCipherCircuit<'a> {
             .iter()
             .zip(cipher_gadget.iter())
             .for_each(|(c, g)| {
-                let x = composer.append_witness(*c);
+                let x = composer.append_public_witness(*c);
                 composer.assert_equal(x, *g);
             });
 
@@ -250,15 +243,22 @@ fn gadget() -> Result<(), PlonkError> {
     let (pk, vd) = TestCipherCircuit::default().compile(&pp)?;
 
     let proof = TestCipherCircuit::new(
-        bob_secret,
-        alice_public,
+        shared_secret,
         nonce,
         &message,
         cipher.cipher(),
     )
     .prove(&pp, &pk, label)?;
 
-    TestCipherCircuit::verify(&pp, &vd, &proof, &[], label)?;
+    let mut public_input = vec![];
+
+    public_input.push(PublicInputValue::from(shared_secret));
+
+    cipher.cipher().iter().for_each(|c| {
+        public_input.push(PublicInputValue::from(*c));
+    });
+
+    TestCipherCircuit::verify(&pp, &vd, &proof, &public_input, label)?;
 
     Ok(())
 }
