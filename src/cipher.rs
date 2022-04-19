@@ -95,7 +95,7 @@ use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 use dusk_hades::{ScalarStrategy, Strategy};
 use dusk_jubjub::JubJubAffine;
 
-const MESSAGE_CAPACITY: usize = 9;
+const MESSAGE_CAPACITY: usize = 11;
 const CIPHER_SIZE: usize = MESSAGE_CAPACITY + 1;
 const CIPHER_BYTES_SIZE: usize = CIPHER_SIZE * BlsScalar::SIZE;
 
